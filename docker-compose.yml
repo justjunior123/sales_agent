@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: sales_agent_api
+    ports:
+      - "8000:8000"
+    environment:
+      - FMCSA_API_KEY=${FMCSA_API_KEY}
+      - DATABASE_PATH=/app/app/data/sales_agent.db
+      - APP_ENV=development
+      - PORT=8000
+    volumes:
+      - ./app:/app/app
+      - ./app/data:/app/app/data
+    restart: unless-stopped
+
+  dashboard:
+    build: .
+    container_name: sales_agent_dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - DATABASE_PATH=/app/app/data/sales_agent.db
+      - API_BASE_URL=http://api:8000/api/v1
+    volumes:
+      - ./app:/app/app
+      - ./streamlit:/app/streamlit
+      - ./tests:/app/tests
+      - ./app/data:/app/app/data
+    command: streamlit run streamlit/dashboard.py --server.port=8501 --server.address=0.0.0.0
+    depends_on:
+      - api
+    restart: unless-stopped

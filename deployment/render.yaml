@@ -27,8 +27,6 @@ services:
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /docs
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: FMCSA_API_KEY
         sync: false  # Set this in Render dashboard
       - key: DATABASE_URL
@@ -50,8 +48,6 @@ services:
     startCommand: "streamlit run streamlit/dashboard.py --server.port $PORT --server.address 0.0.0.0"
     healthCheckPath: /
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: DATABASE_URL
         sync: false  # Set this in Render dashboard (same Supabase connection string as API)
       - key: API_BASE_URL

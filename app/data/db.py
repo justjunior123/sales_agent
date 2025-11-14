@@ -1,62 +1,63 @@
 """
-SQLite database setup and operations for call logs.
+PostgreSQL database operations for call logs using Supabase.
 """
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 import uuid
 
 
-DB_PATH = os.getenv("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "sales_agent.db"))
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable not set. "
+        "Please set it to your Supabase PostgreSQL connection string."
+    )
 
 
 def get_connection():
-    """Get a database connection."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # Return rows as dictionaries
-    return conn
+    """Get a database connection to Supabase PostgreSQL."""
+    try:
+        conn = psycopg2.connect(
+            DATABASE_URL,
+            cursor_factory=RealDictCursor  # Return rows as dictionaries
+        )
+        return conn
+    except psycopg2.OperationalError as e:
+        raise ConnectionError(f"Failed to connect to database: {str(e)}")
 
 
 def init_database():
     """
-    Initialize the database with required schema.
-    Safe to call multiple times (uses IF NOT EXISTS).
+    Check database connectivity.
+    Table creation is handled in Supabase SQL Editor.
     """
-    conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    # Create call_logs table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS call_logs (
-            call_id TEXT PRIMARY KEY,
-            carrier_mc TEXT NOT NULL,
-            carrier_name TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            load_id TEXT,
-            loadboard_rate REAL,
-            agreed_rate REAL,
-            negotiation_rounds INTEGER DEFAULT 0,
-            outcome TEXT CHECK(outcome IN ('booked', 'negotiated', 'rejected')),
-            sentiment TEXT CHECK(sentiment IN ('positive', 'neutral', 'negative')),
-            notes TEXT,
-            call_duration_seconds INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+        # Verify table exists
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_name = 'call_logs'
+            )
+        """)
+        table_exists = cursor.fetchone()['exists']
 
-    # Create index on timestamp for faster queries
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_timestamp ON call_logs(timestamp)
-    """)
+        conn.close()
 
-    # Create index on outcome for filtering
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_outcome ON call_logs(outcome)
-    """)
+        if not table_exists:
+            raise RuntimeError(
+                "Table 'call_logs' does not exist in database. "
+                "Please create it using the SQL schema in Supabase."
+            )
 
-    conn.commit()
-    conn.close()
+    except Exception as e:
+        print(f"Warning: Database initialization check failed: {str(e)}")
 
 
 def insert_call_log(
@@ -81,22 +82,27 @@ def insert_call_log(
     cursor = conn.cursor()
 
     call_id = f"CALL_{uuid.uuid4().hex[:8].upper()}"
-    timestamp = datetime.now().isoformat()
+    timestamp = datetime.now()
 
-    cursor.execute("""
-        INSERT INTO call_logs (
+    try:
+        cursor.execute("""
+            INSERT INTO call_logs (
+                call_id, carrier_mc, carrier_name, timestamp, load_id,
+                loadboard_rate, agreed_rate, negotiation_rounds, outcome,
+                sentiment, notes, call_duration_seconds
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
             call_id, carrier_mc, carrier_name, timestamp, load_id,
             loadboard_rate, agreed_rate, negotiation_rounds, outcome,
             sentiment, notes, call_duration_seconds
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        call_id, carrier_mc, carrier_name, timestamp, load_id,
-        loadboard_rate, agreed_rate, negotiation_rounds, outcome,
-        sentiment, notes, call_duration_seconds
-    ))
+        ))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
     return call_id
 
@@ -127,18 +133,18 @@ def get_call_logs(
     params = []
 
     if start_date:
-        query += " AND timestamp >= ?"
+        query += " AND timestamp >= %s"
         params.append(start_date)
 
     if end_date:
-        query += " AND timestamp <= ?"
+        query += " AND timestamp <= %s"
         params.append(end_date)
 
     if outcome:
-        query += " AND outcome = ?"
+        query += " AND outcome = %s"
         params.append(outcome)
 
-    query += " ORDER BY timestamp DESC LIMIT ?"
+    query += " ORDER BY timestamp DESC LIMIT %s"
     params.append(limit)
 
     cursor.execute(query, params)
@@ -146,7 +152,7 @@ def get_call_logs(
 
     conn.close()
 
-    # Convert to list of dictionaries
+    # Convert to list of dictionaries (RealDictCursor already returns dicts)
     return [dict(row) for row in rows]
 
 
@@ -190,7 +196,8 @@ def get_call_stats() -> Dict[str, Any]:
         FROM call_logs
         WHERE loadboard_rate IS NOT NULL AND agreed_rate IS NOT NULL
     """)
-    averages = dict(cursor.fetchone())
+    averages_row = cursor.fetchone()
+    averages = dict(averages_row) if averages_row else {}
 
     # Margin analysis (difference between board rate and agreed rate)
     cursor.execute("""
@@ -201,7 +208,8 @@ def get_call_stats() -> Dict[str, Any]:
         FROM call_logs
         WHERE loadboard_rate IS NOT NULL AND agreed_rate IS NOT NULL
     """)
-    margin_data = dict(cursor.fetchone())
+    margin_row = cursor.fetchone()
+    margin_data = dict(margin_row) if margin_row else {}
 
     conn.close()
 
@@ -221,10 +229,16 @@ def delete_all_calls():
     """
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM call_logs")
-    conn.commit()
-    conn.close()
+
+    try:
+        cursor.execute("DELETE FROM call_logs")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
 
-# Initialize database on module import
+# Initialize database check on module import
 init_database()

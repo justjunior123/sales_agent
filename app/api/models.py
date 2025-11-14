@@ -2,7 +2,7 @@
 Pydantic models for API request and response validation.
 """
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime
 
 
@@ -95,15 +95,21 @@ class CallLogEntry(BaseModel):
     call_id: str
     carrier_mc: str
     carrier_name: Optional[str]
-    timestamp: str
+    timestamp: Union[str, datetime]  # Can be datetime from PostgreSQL or string from serialization
     load_id: Optional[str]
     loadboard_rate: Optional[float]
     agreed_rate: Optional[float]
-    negotiation_rounds: int
+    negotiation_rounds: Optional[int] = 0  # Can be None from database
     outcome: str
     sentiment: str
     notes: Optional[str]
-    call_duration_seconds: int
+    call_duration_seconds: Optional[int] = 0  # Can be None from database
+
+    class Config:
+        # Allow datetime objects and automatically convert them
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
 
 
 class CallLogsResponse(BaseModel):

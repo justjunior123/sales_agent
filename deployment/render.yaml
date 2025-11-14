@@ -1,3 +1,20 @@
+# Render Blueprint for HappyRobot Inbound Carrier Sales Agent
+#
+# This deploys two web services:
+# 1. sales-agent-api: FastAPI backend with FMCSA integration
+# 2. sales-agent-dashboard: Streamlit analytics dashboard
+#
+# Database: PostgreSQL via Supabase
+# - Both services connect to shared Supabase database
+# - Data persists between deployments and is shared across services
+# - Connection string set via DATABASE_URL environment variable
+#
+# Manual setup required:
+# 1. Create Supabase project and get DATABASE_URL connection string
+# 2. Set FMCSA_API_KEY in Render dashboard for API service
+# 3. Set DATABASE_URL in Render dashboard for both services
+# 4. Update API_BASE_URL in dashboard service if API name changes
+
 services:
   # API Service
   - type: web
@@ -5,28 +22,37 @@ services:
     env: python
     region: oregon
     plan: free
+    branch: main
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /docs
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: FMCSA_API_KEY
         sync: false  # Set this in Render dashboard
-      - key: DATABASE_PATH
-        value: ./app/data/sales_agent.db
+      - key: DATABASE_URL
+        sync: false  # Set this in Render dashboard (Supabase connection string)
       - key: APP_ENV
         value: production
 
   # Dashboard Service (optional, can deploy separately)
+  # NOTE: Both API and Dashboard connect to shared Supabase database.
+  # Data persists and is synchronized between services.
+  # Use the built-in Demo Controls (Load/Clear buttons) to populate dashboard data.
   - type: web
     name: sales-agent-dashboard
     env: python
     region: oregon
     plan: free
+    branch: main
     buildCommand: "pip install -r requirements.txt"
     startCommand: "streamlit run streamlit/dashboard.py --server.port $PORT --server.address 0.0.0.0"
+    healthCheckPath: /
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: DATABASE_PATH
-        value: ./app/data/sales_agent.db
+      - key: DATABASE_URL
+        sync: false  # Set this in Render dashboard (same Supabase connection string as API)
+      - key: API_BASE_URL
+        value: https://sales-agent-api.onrender.com/api/v1

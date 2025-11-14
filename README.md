@@ -51,6 +51,8 @@ sales_agent/
 
 ## Quick Start
 
+> **📖 First-time setup?** See [**SETUP.md**](SETUP.md) for comprehensive step-by-step instructions including Supabase database configuration.
+
 ### 1. Clone and Setup
 
 ```bash
@@ -67,9 +69,18 @@ pip install -r requirements.txt
 
 ### 2. Configure Environment
 
+**⚠️ Important:** This project uses PostgreSQL (Supabase). You must:
+1. Create a Supabase project (free tier)
+2. URL-encode your password (special characters must be encoded)
+3. Create the `call_logs` table
+
+See [SETUP.md - Part 1: Supabase Setup](SETUP.md#part-1-supabase-database-setup) for detailed instructions.
+
 ```bash
 cp .env.example .env
-# Edit .env and add your FMCSA_API_KEY
+# Edit .env and add:
+# - FMCSA_API_KEY (your API key)
+# - DATABASE_URL (your Supabase connection string with ENCODED password)
 ```
 
 ### 3. Run Locally
@@ -269,9 +280,10 @@ CEILING_PERCENTAGE = 0.05  # 5% above board rate
 
 - **FastAPI**: Fast, modern, production-ready Python framework
 - **Streamlit**: Simple, effective dashboard without overengineering
-- **SQLite**: Perfect for POC, easy to migrate to PostgreSQL
+- **PostgreSQL (Supabase)**: Production-ready database with persistence and shared data access
 - **Rule-Based NLP**: Transparent, debuggable, no LLM API costs
 - **Render**: Free tier, familiar platform, no deployment friction
+- **Connection Pooling**: Uses Supabase pooling for optimal performance
 
 ### What's NOT Included (Intentionally)
 
@@ -279,7 +291,7 @@ CEILING_PERCENTAGE = 0.05  # 5% above board rate
 - Complex state machines
 - Heavy frontend frameworks
 - Authentication/authorization (POC scope)
-- Production-grade database (SQLite is ephemeral on Render free tier)
+- Advanced caching layers (PostgreSQL is fast enough for POC)
 
 ## License
 

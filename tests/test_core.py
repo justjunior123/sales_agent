@@ -147,11 +147,17 @@ def make_api_call(method: str, endpoint: str, **kwargs) -> Tuple[bool, Optional[
     else:
         url = f"{base_url}{endpoint}"
 
+    # Add API key authentication header from environment variable
+    headers = kwargs.pop('headers', {})
+    api_key = os.getenv("API_KEY")
+    if api_key:
+        headers["X-API-Key"] = api_key
+
     try:
         if method == "GET":
-            response = requests.get(url, **kwargs)
+            response = requests.get(url, headers=headers, **kwargs)
         elif method == "POST":
-            response = requests.post(url, **kwargs)
+            response = requests.post(url, headers=headers, **kwargs)
         else:
             return (False, {"error": f"Unsupported method: {method}"})
 

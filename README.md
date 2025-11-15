@@ -19,6 +19,7 @@ When a carrier calls in requesting loads, this system:
 - **Dashboard**: Streamlit
 - **Deployment**: Docker + Render
 - **APIs**: FMCSA Carrier Verification
+- **Security**: API Key Authentication (X-API-Key header)
 
 ## Project Structure
 
@@ -79,7 +80,8 @@ See [SETUP.md - Part 1: Supabase Setup](SETUP.md#part-1-supabase-database-setup)
 ```bash
 cp .env.example .env
 # Edit .env and add:
-# - FMCSA_API_KEY (your API key)
+# - FMCSA_API_KEY (your FMCSA API key)
+# - API_KEY (generate with: openssl rand -hex 32)
 # - DATABASE_URL (your Supabase connection string with ENCODED password)
 ```
 
@@ -106,6 +108,32 @@ Access:
 - API Docs: http://localhost:8000/docs
 - Dashboard: http://localhost:8501
 
+## API Authentication
+
+All API endpoints (except the root health check) require authentication via the `X-API-Key` header.
+
+### Setup
+
+1. Generate a secure API key:
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. Add the key to your `.env` file:
+   ```bash
+   API_KEY=your_generated_key_here
+   ```
+
+3. Include the header in all requests:
+   ```bash
+   -H "X-API-Key: YOUR_API_KEY_HERE"
+   ```
+
+### Authentication Errors
+
+- **401 Unauthorized**: Invalid or missing API key
+- **500 Internal Server Error**: API key not configured on server
+
 ## API Endpoints
 
 ### Core Endpoints
@@ -121,10 +149,13 @@ Access:
 
 ### Example Usage
 
+> **Note**: Replace `YOUR_API_KEY_HERE` with the actual key from your `.env` file.
+
 **Verify Carrier**
 ```bash
 curl -X POST http://localhost:8000/api/v1/verify_carrier \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
   -d '{"mc_number": "MC123456"}'
 ```
 
@@ -132,6 +163,7 @@ curl -X POST http://localhost:8000/api/v1/verify_carrier \
 ```bash
 curl -X POST http://localhost:8000/api/v1/search_loads \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
   -d '{
     "origin": "Los Angeles, CA",
     "destination": "Houston, TX",
@@ -143,6 +175,7 @@ curl -X POST http://localhost:8000/api/v1/search_loads \
 ```bash
 curl -X POST http://localhost:8000/api/v1/evaluate_offer \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
   -d '{
     "original_rate": 2500,
     "counter_rate": 2300,
@@ -215,7 +248,10 @@ See detailed instructions in [deployment/DEPLOYMENT.md](deployment/DEPLOYMENT.md
 **Quick Deploy:**
 1. Push code to GitHub
 2. Connect repository to Render
-3. Add FMCSA_API_KEY environment variable
+3. Add environment variables in Render dashboard:
+   - `FMCSA_API_KEY` - Your FMCSA API key
+   - `API_KEY` - Your generated API key (use `openssl rand -hex 32`)
+   - `DATABASE_URL` - Your Supabase connection string
 4. Deploy!
 
 Your API will be live at: `https://your-app-name.onrender.com`
@@ -290,7 +326,7 @@ CEILING_PERCENTAGE = 0.05  # 5% above board rate
 - Over-engineered ML models
 - Complex state machines
 - Heavy frontend frameworks
-- Authentication/authorization (POC scope)
+- Advanced authentication (OAuth, JWT) - basic API key auth is sufficient for POC
 - Advanced caching layers (PostgreSQL is fast enough for POC)
 
 ## License

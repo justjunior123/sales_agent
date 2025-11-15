@@ -8,6 +8,7 @@ services:
       - "8000:8000"
     environment:
       - FMCSA_API_KEY=${FMCSA_API_KEY}
+      - API_KEY=${API_KEY}
       - DATABASE_URL=${DATABASE_URL}
       - APP_ENV=development
       - PORT=8000

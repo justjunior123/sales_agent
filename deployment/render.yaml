@@ -12,8 +12,9 @@
 # Manual setup required:
 # 1. Create Supabase project and get DATABASE_URL connection string
 # 2. Set FMCSA_API_KEY in Render dashboard for API service
-# 3. Set DATABASE_URL in Render dashboard for both services
-# 4. Update API_BASE_URL in dashboard service if API name changes
+# 3. Set API_KEY in Render dashboard for API service (generate with: openssl rand -hex 32)
+# 4. Set DATABASE_URL in Render dashboard for both services
+# 5. Update API_BASE_URL in dashboard service if API name changes
 
 services:
   # API Service
@@ -29,6 +30,8 @@ services:
     envVars:
       - key: FMCSA_API_KEY
         sync: false  # Set this in Render dashboard
+      - key: API_KEY
+        sync: false  # Set this in Render dashboard (generate with: openssl rand -hex 32)
       - key: DATABASE_URL
         sync: false  # Set this in Render dashboard (Supabase connection string)
       - key: APP_ENV

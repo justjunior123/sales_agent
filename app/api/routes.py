@@ -1,7 +1,7 @@
 """
 FastAPI routes for all endpoints.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 
 from app.api.models import (
@@ -12,6 +12,7 @@ from app.api.models import (
     CallClassificationRequest, CallClassificationResponse,
     CallLogsResponse, CallLogEntry
 )
+from app.api.auth import verify_api_key
 from app.services.verification import verify_carrier
 from app.services.search import search_loads
 from app.services.negotiation import evaluate_offer as eval_offer
@@ -34,11 +35,15 @@ async def root():
 
 
 @router.post("/verify_carrier", response_model=CarrierVerificationResponse)
-async def verify_carrier_endpoint(request: CarrierVerificationRequest):
+async def verify_carrier_endpoint(
+    request: CarrierVerificationRequest,
+    authenticated: bool = Depends(verify_api_key)
+):
     """
     Verify carrier eligibility via MC number.
 
     This endpoint integrates with the FMCSA API to validate carrier credentials.
+    Requires X-API-Key header for authentication.
     """
     try:
         eligible, carrier_name, reason = verify_carrier(request.mc_number)
@@ -57,11 +62,15 @@ async def verify_carrier_endpoint(request: CarrierVerificationRequest):
 
 
 @router.post("/search_loads", response_model=LoadSearchResponse)
-async def search_loads_endpoint(request: LoadSearchRequest):
+async def search_loads_endpoint(
+    request: LoadSearchRequest,
+    authenticated: bool = Depends(verify_api_key)
+):
     """
     Search for matching loads based on carrier requirements.
 
     Returns top 3 loads ranked by match quality.
+    Requires X-API-Key header for authentication.
     """
     try:
         loads = search_loads(
@@ -89,13 +98,17 @@ async def search_loads_endpoint(request: LoadSearchRequest):
 
 
 @router.post("/evaluate_offer", response_model=OfferEvaluationResponse)
-async def evaluate_offer_endpoint(request: OfferEvaluationRequest):
+async def evaluate_offer_endpoint(
+    request: OfferEvaluationRequest,
+    authenticated: bool = Depends(verify_api_key)
+):
     """
     Evaluate a counter-offer and determine response.
 
     Applies pricing guardrails:
     - Floor: original_rate - 10%
     - Ceiling: original_rate + 5%
+    Requires X-API-Key header for authentication.
     """
     try:
         decision, suggested_rate, reason = eval_offer(
@@ -118,7 +131,10 @@ async def evaluate_offer_endpoint(request: OfferEvaluationRequest):
 
 
 @router.post("/extract_call_data", response_model=CallExtractionResponse)
-async def extract_call_data_endpoint(request: CallExtractionRequest):
+async def extract_call_data_endpoint(
+    request: CallExtractionRequest,
+    authenticated: bool = Depends(verify_api_key)
+):
     """
     Extract structured data from call transcript.
 
@@ -127,6 +143,7 @@ async def extract_call_data_endpoint(request: CallExtractionRequest):
     - Agreed rates
     - Negotiation rounds
     - Call notes
+    Requires X-API-Key header for authentication.
     """
     try:
         extracted_data = extract_call_data(request.call_transcript)
@@ -147,12 +164,16 @@ async def extract_call_data_endpoint(request: CallExtractionRequest):
 
 
 @router.post("/classify_call", response_model=CallClassificationResponse)
-async def classify_call_endpoint(request: CallClassificationRequest):
+async def classify_call_endpoint(
+    request: CallClassificationRequest,
+    authenticated: bool = Depends(verify_api_key)
+):
     """
     Classify call outcome and sentiment.
 
     Outcome: booked, negotiated, rejected
     Sentiment: positive, neutral, negative
+    Requires X-API-Key header for authentication.
     """
     try:
         classification = classify_call_data(
@@ -178,7 +199,8 @@ async def get_call_logs_endpoint(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     outcome: Optional[str] = None,
-    limit: int = 100
+    limit: int = 100,
+    authenticated: bool = Depends(verify_api_key)
 ):
     """
     Retrieve call logs with optional filtering.
@@ -188,6 +210,7 @@ async def get_call_logs_endpoint(
     - end_date: ISO format
     - outcome: booked, negotiated, or rejected
     - limit: Maximum number of records (default 100)
+    Requires X-API-Key header for authentication.
     """
     try:
         logs = get_call_logs(
@@ -214,7 +237,7 @@ async def get_call_logs_endpoint(
 
 
 @router.get("/call_stats")
-async def get_call_stats_endpoint():
+async def get_call_stats_endpoint(authenticated: bool = Depends(verify_api_key)):
     """
     Get aggregate statistics about calls.
 
@@ -224,6 +247,7 @@ async def get_call_stats_endpoint():
     - Sentiment distribution
     - Average rates and negotiation rounds
     - Margin analysis
+    Requires X-API-Key header for authentication.
     """
     try:
         stats = get_call_stats()
@@ -247,12 +271,14 @@ async def log_call_endpoint(
     outcome: str = "negotiated",
     sentiment: str = "neutral",
     notes: Optional[str] = None,
-    call_duration_seconds: int = 0
+    call_duration_seconds: int = 0,
+    authenticated: bool = Depends(verify_api_key)
 ):
     """
     Manually log a call (useful for testing and HappyRobot integration).
 
     This endpoint allows the HappyRobot agent to log completed calls.
+    Requires X-API-Key header for authentication.
     """
     try:
         call_id = insert_call_log(

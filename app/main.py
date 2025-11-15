@@ -34,6 +34,7 @@ app.include_router(router, prefix="/api/v1", tags=["v1"])
 
 # Root endpoint (without prefix)
 @app.get("/")
+@app.head("/")
 async def root():
     """Root health check."""
     return {

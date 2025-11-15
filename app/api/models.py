@@ -116,3 +116,24 @@ class CallLogsResponse(BaseModel):
     total_calls: int = Field(..., description="Total number of calls matching filter")
     status: str = Field(default="success")
     calls: List[CallLogEntry] = Field(..., description="List of call log entries")
+
+
+# ==================== Log Call Endpoint ====================
+
+class LogCallRequest(BaseModel):
+    carrier_mc: str = Field(..., description="Motor Carrier number")
+    carrier_name: Optional[str] = Field(None, description="Carrier business name")
+    load_id: Optional[str] = Field(None, description="Load ID")
+    loadboard_rate: Optional[float] = Field(None, description="Original loadboard rate")
+    agreed_rate: Optional[float] = Field(None, description="Final agreed rate")
+    negotiation_rounds: int = Field(default=0, description="Number of negotiation rounds")
+    outcome: str = Field(default="negotiated", description="Call outcome: booked, negotiated, or rejected")
+    sentiment: str = Field(default="neutral", description="Carrier sentiment: positive, neutral, or negative")
+    notes: Optional[str] = Field(None, description="Call notes")
+    call_duration_seconds: int = Field(default=0, description="Call duration in seconds")
+
+
+class LogCallResponse(BaseModel):
+    status: str = Field(default="success")
+    message: str = Field(..., description="Result message")
+    call_id: str = Field(..., description="Generated call ID")

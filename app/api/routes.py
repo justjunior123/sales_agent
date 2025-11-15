@@ -10,7 +10,8 @@ from app.api.models import (
     OfferEvaluationRequest, OfferEvaluationResponse,
     CallExtractionRequest, CallExtractionResponse,
     CallClassificationRequest, CallClassificationResponse,
-    CallLogsResponse, CallLogEntry
+    CallLogsResponse, CallLogEntry,
+    LogCallRequest, LogCallResponse
 )
 from app.api.auth import verify_api_key
 from app.services.verification import verify_carrier
@@ -260,18 +261,9 @@ async def get_call_stats_endpoint(authenticated: bool = Depends(verify_api_key))
         )
 
 
-@router.post("/log_call")
+@router.post("/log_call", response_model=LogCallResponse)
 async def log_call_endpoint(
-    carrier_mc: str,
-    carrier_name: Optional[str] = None,
-    load_id: Optional[str] = None,
-    loadboard_rate: Optional[float] = None,
-    agreed_rate: Optional[float] = None,
-    negotiation_rounds: int = 0,
-    outcome: str = "negotiated",
-    sentiment: str = "neutral",
-    notes: Optional[str] = None,
-    call_duration_seconds: int = 0,
+    request: LogCallRequest,
     authenticated: bool = Depends(verify_api_key)
 ):
     """
@@ -282,23 +274,23 @@ async def log_call_endpoint(
     """
     try:
         call_id = insert_call_log(
-            carrier_mc=carrier_mc,
-            carrier_name=carrier_name,
-            load_id=load_id,
-            loadboard_rate=loadboard_rate,
-            agreed_rate=agreed_rate,
-            negotiation_rounds=negotiation_rounds,
-            outcome=outcome,
-            sentiment=sentiment,
-            notes=notes,
-            call_duration_seconds=call_duration_seconds
+            carrier_mc=request.carrier_mc,
+            carrier_name=request.carrier_name,
+            load_id=request.load_id,
+            loadboard_rate=request.loadboard_rate,
+            agreed_rate=request.agreed_rate,
+            negotiation_rounds=request.negotiation_rounds,
+            outcome=request.outcome,
+            sentiment=request.sentiment,
+            notes=request.notes,
+            call_duration_seconds=request.call_duration_seconds
         )
 
-        return {
-            "status": "success",
-            "call_id": call_id,
-            "message": "Call logged successfully"
-        }
+        return LogCallResponse(
+            status="success",
+            call_id=call_id,
+            message="Call logged successfully"
+        )
 
     except Exception as e:
         raise HTTPException(

@@ -185,10 +185,10 @@ def populate_database() -> Tuple[bool, str]:
     failed_calls = []
 
     for call_data in SAMPLE_CALLS:
-        # Build query params (exclude None values)
+        # Build JSON body (exclude None values)
         params = {k: v for k, v in call_data.items() if v is not None}
 
-        success, result = make_api_call("POST", "/log_call", params=params)
+        success, result = make_api_call("POST", "/log_call", json=params)
 
         if success:
             logged_count += 1

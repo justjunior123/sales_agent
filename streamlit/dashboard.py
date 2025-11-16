@@ -279,18 +279,20 @@ def main():
             lambda x: f"${x:.2f}" if pd.notna(x) else "N/A"
         )
 
-        # Color code outcomes
+        # Color code outcomes with high contrast text
         def highlight_outcome(row):
             if row["outcome"] == "booked":
-                return ["background-color: #d5f4e6"] * len(row)
+                return ["background-color: #2e7d32; color: #ffffff; font-weight: bold"] * len(row)
             elif row["outcome"] == "rejected":
-                return ["background-color: #fadbd8"] * len(row)
+                return ["background-color: #c62828; color: #ffffff; font-weight: bold"] * len(row)
+            elif row["outcome"] == "negotiated":
+                return ["background-color: #f9a825; color: #000000; font-weight: bold"] * len(row)
             else:
-                return [""] * len(row)
+                return ["background-color: #424242; color: #ffffff"] * len(row)
 
         styled_df = display_df.style.apply(highlight_outcome, axis=1)
 
-        st.dataframe(styled_df, use_container_width=True)
+        st.dataframe(styled_df, use_container_width=True, height=400)
 
         # Download button
         csv = df.to_csv(index=False)
